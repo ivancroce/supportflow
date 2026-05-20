@@ -8,6 +8,7 @@ CLAUDE.local.md
 .env.local
 .env.*.local
 *.local
+application-local.properties
 
 # Node / frontend
 node_modules/
