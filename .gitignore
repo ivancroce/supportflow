@@ -1,0 +1,32 @@
+# Claude Code local (personal, not shared)
+CLAUDE.local.md
+.claude/
+.claude/plans/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.local
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Java / backend
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
