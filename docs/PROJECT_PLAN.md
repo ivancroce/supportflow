@@ -17,10 +17,11 @@ AI advisor and one-click fan-out that removes manual copy-paste between four too
 Hard constraint: **everything stays on free tiers** (build → deploy → run, no credit card, no spend).
 
 The "wow" demo moment: on a ticket in a client project, you click **"Escalate as bug"** and a linked
-Jira issue, a Qase test case, and a Confluence page all appear at once — in *that client's* Jira
+Jira issue, a Qase test case, and a Confluence page all appear at once — in _that client's_ Jira
 project / Qase project / Confluence space — each linking back to the SupportFlow ticket.
 
 Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
+
 - **A1 — Development workflow (process):** manually use the tools to build SupportFlow itself. No code.
 - **B — Runtime feature (product):** the app programmatically pushes records into the tools during
   bug escalation, per project. This is the headline feature.
@@ -30,21 +31,21 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
 
 ## Locked Decisions
 
-| Topic | Decision |
-|---|---|
-| Project type | Portfolio/learning project (optimize for demo clarity, not scale) |
-| Product shape | **Personal multi-project hub** — one app, many client projects |
-| Users | **Just you** (the developer). No client or end-user logins. Optionally a small team, all same role |
-| Auth | Google + GitHub OAuth, **restricted to an email allowlist** (only your account(s) can sign in); app-issued JWT |
-| Multi-project | **Yes** — a `Project` entity (= one client/website); tickets belong to a project |
-| Tool mapping | **Per-project config**: each project stores its own Jira project key, Qase project code, Confluence space key (shared API tokens, different targets) |
-| AI advisor | Agent-facing, human-in-the-loop. Runs on ticket open: classify type/category/priority + draft note. Cached per ticket |
-| AI model | **Google Gemini Flash** (free API tier) |
-| Escalation trigger | **Only when a ticket is escalated as a BUG** (manual, AI-assisted). Normal tickets never escalate |
-| Escalation direction | **Phase 1 = one-way push**. **Phase 2 (post-hosting) = two-way** webhook sync-back |
-| Confluence timing | Page created **at escalation** as a "Known Issue / Investigating" stub |
-| Repo | **Single monorepo** (`/frontend` + `/backend`), one GitHub repo |
-| Hosting | Backend → **Cloud Run**; DB → **Neon Postgres**; Frontend → **Vercel**. All $0, no card |
+| Topic                | Decision                                                                                                                                             |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project type         | Portfolio/learning project (optimize for demo clarity, not scale)                                                                                    |
+| Product shape        | **Personal multi-project hub** — one app, many client projects                                                                                       |
+| Users                | **Just you** (the developer). No client or end-user logins. Optionally a small team, all same role                                                   |
+| Auth                 | Google + GitHub OAuth, **restricted to an email allowlist** (only your account(s) can sign in); app-issued JWT                                       |
+| Multi-project        | **Yes** — a `Project` entity (= one client/website); tickets belong to a project                                                                     |
+| Tool mapping         | **Per-project config**: each project stores its own Jira project key, Qase project code, Confluence space key (shared API tokens, different targets) |
+| AI advisor           | Agent-facing, human-in-the-loop. Runs on ticket open: classify type/category/priority + draft note. Cached per ticket                                |
+| AI model             | **Google Gemini Flash** (free API tier)                                                                                                              |
+| Escalation trigger   | **Only when a ticket is escalated as a BUG** (manual, AI-assisted). Normal tickets never escalate                                                    |
+| Escalation direction | **Phase 1 = one-way push**. **Phase 2 (post-hosting) = two-way** webhook sync-back                                                                   |
+| Confluence timing    | Page created **at escalation** as a "Known Issue / Investigating" stub                                                                               |
+| Repo                 | **Single monorepo** (`/frontend` + `/backend`), one GitHub repo                                                                                      |
+| Hosting              | Backend → **Cloud Run**; DB → **Neon Postgres**; Frontend → **Vercel**. All $0, no card                                                              |
 
 ---
 
@@ -74,12 +75,13 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
   draftNote, generatedAt.
 
 **Enums:**
+
 - Status: `OPEN → IN_PROGRESS → PENDING → RESOLVED → CLOSED`
 - Priority: `LOW / MEDIUM / HIGH / URGENT`
 - Type: `QUESTION / BUG / FEATURE_REQUEST`
 
 > Integration **credentials** (Atlassian email+token, Qase token) are global env vars — one account.
-> The **per-project config** stores only *which* Jira project / Qase project / Confluence space to
+> The **per-project config** stores only _which_ Jira project / Qase project / Confluence space to
 > target, so each client's records stay isolated within your single set of accounts.
 
 ---
@@ -95,11 +97,12 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
   - `ConfluenceClient` — create page in a given space key. Same Atlassian token.
   - `QaseClient` — create test case in a given project code. Qase token header.
 - **EscalationService** — for "Escalate as bug": reads the ticket's **Project** config, calls
-  Jira → Qase → Confluence into *that project's* targets, stores returned IDs on the ticket, sets
+  Jira → Qase → Confluence into _that project's_ targets, stores returned IDs on the ticket, sets
   `escalated=true`, `type=BUG`. Partial-failure tolerant (record what succeeded; allow retry).
 - **AiAdvisorService** — on ticket open, return cached `AiSuggestion` or generate via Gemini.
 
 ### Key API endpoints (sketch)
+
 - `GET/POST /api/projects`, `GET/PATCH /api/projects/{id}` (incl. per-project tool config)
 - `GET/POST /api/projects/{id}/tickets`, `GET /api/tickets/{id}`, `PATCH /api/tickets/{id}`
 - `POST /api/tickets/{id}/messages`
@@ -126,14 +129,16 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
 1. **Atlassian Cloud (Jira + Confluence)** — one free account (≤10 users). Create one Jira project
    and one Confluence space **per client project** (free tier allows multiple). API token; auth =
    Basic(email:token).
-2. **Qase** — free plan. Create one project per client. Generate API token. *(Note: Qase free tier
-   limits the number of active projects — fine for a demo with a few clients; check current limit.)*
+2. **Qase** — free plan. Create one project per client. Generate API token. _(Note: Qase free tier
+   limits the number of active projects — fine for a demo with a few clients; check current limit.)_
 3. **Gemini** — free API key from Google AI Studio (no card).
 4. **Neon** — free Postgres project; copy connection string.
 5. **Cloud Run** — free tier (scales to zero). **Vercel** — free frontend hosting.
 
 ### Environment variables (never commit; provide a committed `.env.example`)
+
 Backend:
+
 - `DATABASE_URL` (Neon)
 - `JWT_SECRET`
 - `AUTH_ALLOWLIST` (comma-separated emails allowed to sign in)
@@ -146,6 +151,7 @@ Backend:
 - `FRONTEND_ORIGIN` (CORS)
 
 Frontend:
+
 - `VITE_API_BASE_URL`
 
 ---
@@ -163,26 +169,32 @@ Do **not** automate this via CI (that would be A2, out of scope).
 ## Build Phases
 
 **Phase 0 — Scaffolding**
+
 - Monorepo: `/frontend` (Vite + Tailwind + shadcn) + `/backend` (Spring Initializr, Java 21, Maven, mvnw).
 - Neon/Postgres connection; JPA/Flyway schema for User/Project/Ticket/Message.
 - Health endpoint + basic React shell.
 
 **Phase 1 — Auth + projects + tickets**
+
 - OAuth login (Google + GitHub) with allowlist gate + JWT.
 - Project CRUD (incl. per-project tool config) + project switcher.
 - Ticket CRUD + message thread, scoped to a project.
 
 **Phase 2 — AI advisor**
+
 - `GeminiClient` + `AiAdvisorService` (classify + draft, cached). Agent AI panel in UI.
 
 **Phase 3 — One-way escalation pipeline (headline feature)**
+
 - Jira + Qase + Confluence clients. `EscalationService` using per-project config.
 - "Escalate as bug" button + linked badges. Partial-failure handling + retry.
 
 **Phase 4 — Deploy (all free)**
+
 - Dockerize backend → Cloud Run. DB → Neon. Frontend → Vercel. Env vars + CORS. Cold-start mitigation.
 
 **Phase 5 (future) — Two-way sync-back**
+
 - `POST /webhooks/jira` with signature verification. Jira issue closed → SupportFlow ticket → RESOLVED.
   Requires the public hosted URL from Phase 4.
 
@@ -196,15 +208,15 @@ Do **not** automate this via CI (that would be A2, out of scope).
   tickets are scoped per project.
 - **AI:** open a ticket, verify the advisor panel populates (and is cached on re-open).
 - **Escalation:** click "Escalate as bug" → confirm a Jira issue, Qase case, and Confluence page are
-  created in *that project's* targets, linked back to the ticket, with IDs stored + badges shown.
+  created in _that project's_ targets, linked back to the ticket, with IDs stored + badges shown.
 - **Deploy smoke test:** repeat escalation against the hosted URL after Phase 4.
 - **Free-tier check:** no billing enabled anywhere.
 
 ---
 
 ## Open Items / Notes
+
 - Gemini free quota is limited — AI suggestions are cached per ticket (required).
 - Cloud Run cold starts add first-request latency; acceptable for a demo.
 - Qase free tier limits active projects — verify the current cap before relying on many client projects.
 - Two-way sync-back (Phase 5) deferred until the app is publicly hosted (webhooks need a public URL).
-- The 8 pasted lines from the very first planning message never reached the agent — reconcile if surfaced.
