@@ -2,5 +2,6 @@ package com.supportflow.entity.enums;
 
 public enum AuthProvider {
     GOOGLE,
-    GITHUB
+    GITHUB,
+    DEV
 }
