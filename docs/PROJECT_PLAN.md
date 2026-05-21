@@ -39,8 +39,8 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
 | Auth                 | Google + GitHub OAuth, **restricted to an email allowlist** (only your account(s) can sign in); app-issued JWT                                       |
 | Multi-project        | **Yes** — a `Project` entity (= one client/website); tickets belong to a project                                                                     |
 | Tool mapping         | **Per-project config**: each project stores its own Jira project key, Qase project code, Confluence space key (shared API tokens, different targets) |
-| AI advisor           | Agent-facing, human-in-the-loop. Runs on ticket open: classify type/category/priority + draft note. Cached per ticket                                |
-| AI model             | **Google Gemini Flash** (free API tier)                                                                                                              |
+| AI advisor           | Agent-facing, human-in-the-loop. Auto-runs on ticket open (cached): **classify** type/category/priority + **draft a triage note**. **Suggest-and-accept** (never auto-applies fields). **Never diagnoses/fixes the bug.** Write-only — no retrieval of existing Known Issues (deferred). See `docs/adr/0001`. |
+| AI model             | **Google Gemini 2.5 Flash** (free API tier), for now. Confirm exact model id + free limits in AI Studio before coding                                |
 | Escalation trigger   | **Only when a ticket is escalated as a BUG** (manual, AI-assisted). Normal tickets never escalate                                                    |
 | Escalation direction | **Phase 1 = one-way push**. **Phase 2 (post-hosting) = two-way** webhook sync-back                                                                   |
 | Confluence timing    | Page created **at escalation** as a "Known Issue / Investigating" stub                                                                               |
@@ -182,7 +182,15 @@ Do **not** automate this via CI (that would be A2, out of scope).
 
 **Phase 2 — AI advisor**
 
-- `GeminiClient` + `AiAdvisorService` (classify + draft, cached). Agent AI panel in UI.
+- `GeminiClient` (Gemini 2.5 Flash; confirm model id in AI Studio first) + `AiAdvisorService`.
+- Auto-runs on ticket open, result cached in `AiSuggestion` (re-open never re-calls).
+- Produces a **Classification** (suggested type/category/priority) + a **Triage Note** (structured
+  summary: restated problem, suspected area/severity, missing info). **No bug diagnosis/fix.**
+- **Suggest-and-accept:** panel shows suggestions; ticket fields change only when the user accepts.
+  Reversible to an on-demand "Ask AI" button if it gets noisy or burns quota.
+- The accepted Triage Note is reused at escalation to seed the Jira description + Confluence page
+  (see Phase 3) — no extra Gemini calls.
+- Out of scope (deferred): retrieval/matching against existing Confluence Known Issues.
 
 **Phase 3 — One-way escalation pipeline (headline feature)**
 
