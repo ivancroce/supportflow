@@ -1,5 +1,6 @@
-package com.supportflow.entity;
+package com.supportflow.ai;
 
+import com.supportflow.ticket.Ticket;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,23 +10,21 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "ai_suggestions")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AiSuggestion {
 
     @Id
     @Column(name = "ticket_id")
-    @Setter(AccessLevel.NONE)
     private UUID ticketId;
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -51,10 +50,31 @@ public class AiSuggestion {
 
     public AiSuggestion(Ticket ticket, String suggestedType, String suggestedCategory,
                         String suggestedPriority, String draftNote) {
-        this.ticket = ticket;
+        this.ticket = Objects.requireNonNull(ticket, "ticket");
         this.suggestedType = suggestedType;
         this.suggestedCategory = suggestedCategory;
         this.suggestedPriority = suggestedPriority;
         this.draftNote = draftNote;
+    }
+
+    /** Overwrite the cached suggestion with a freshly generated one. */
+    public void replaceSuggestion(String suggestedType, String suggestedCategory,
+                                  String suggestedPriority, String draftNote) {
+        this.suggestedType = suggestedType;
+        this.suggestedCategory = suggestedCategory;
+        this.suggestedPriority = suggestedPriority;
+        this.draftNote = draftNote;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AiSuggestion that)) return false;
+        return getTicketId() != null && getTicketId().equals(that.getTicketId());
+    }
+
+    @Override
+    public int hashCode() {
+        return AiSuggestion.class.hashCode();
     }
 }

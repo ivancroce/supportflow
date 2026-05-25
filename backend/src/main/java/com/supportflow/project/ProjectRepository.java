@@ -1,11 +1,10 @@
-package com.supportflow.repository;
+package com.supportflow.project;
 
-import com.supportflow.entity.Project;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ProjectRepository extends JpaRepository<Project, UUID> {
+interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     List<Project> findByOwnerId(UUID ownerId);
 }

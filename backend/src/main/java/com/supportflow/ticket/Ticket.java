@@ -1,8 +1,6 @@
-package com.supportflow.entity;
+package com.supportflow.ticket;
 
-import com.supportflow.entity.enums.TicketPriority;
-import com.supportflow.entity.enums.TicketStatus;
-import com.supportflow.entity.enums.TicketType;
+import com.supportflow.project.Project;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,24 +13,22 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "tickets")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Ticket {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -82,12 +78,51 @@ public class Ticket {
 
     public Ticket(Project project, String subject, String description,
                   TicketPriority priority, TicketType type, String category) {
-        this.project = project;
-        this.subject = subject;
+        this.project = Objects.requireNonNull(project, "project");
+        this.subject = requireNonBlank(subject, "subject");
         this.description = description;
         this.status = TicketStatus.OPEN;
         this.priority = priority != null ? priority : TicketPriority.MEDIUM;
         this.type = type != null ? type : TicketType.QUESTION;
         this.category = category;
+    }
+
+    public void changeStatus(TicketStatus status) {
+        this.status = Objects.requireNonNull(status, "status");
+    }
+
+    public void changePriority(TicketPriority priority) {
+        this.priority = Objects.requireNonNull(priority, "priority");
+    }
+
+    public void categorize(String category) {
+        this.category = category;
+    }
+
+    /** Mark this ticket as escalated and record the external system identifiers it was linked to. */
+    public void markEscalated(String jiraIssueKey, String qaseCaseId, String confluencePageId) {
+        this.escalated = true;
+        this.jiraIssueKey = jiraIssueKey;
+        this.qaseCaseId = qaseCaseId;
+        this.confluencePageId = confluencePageId;
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Ticket that)) return false;
+        return getId() != null && getId().equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Ticket.class.hashCode();
     }
 }

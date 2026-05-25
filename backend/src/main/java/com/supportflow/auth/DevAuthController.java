@@ -3,10 +3,9 @@ package com.supportflow.auth;
 import com.supportflow.auth.dto.DevLoginRequest;
 import com.supportflow.auth.dto.TokenResponse;
 import com.supportflow.config.AuthProperties;
-import com.supportflow.entity.User;
-import com.supportflow.entity.enums.AuthProvider;
-import com.supportflow.repository.UserRepository;
 import com.supportflow.security.JwtService;
+import com.supportflow.user.User;
+import com.supportflow.user.UserService;
 import jakarta.validation.Valid;
 import java.util.Locale;
 import org.springframework.context.annotation.Profile;
@@ -22,13 +21,13 @@ import org.springframework.web.server.ResponseStatusException;
 @Profile("local")
 public class DevAuthController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final JwtService jwtService;
     private final AuthProperties authProperties;
 
     public DevAuthController(
-            UserRepository userRepository, JwtService jwtService, AuthProperties authProperties) {
-        this.userRepository = userRepository;
+            UserService userService, JwtService jwtService, AuthProperties authProperties) {
+        this.userService = userService;
         this.jwtService = jwtService;
         this.authProperties = authProperties;
     }
@@ -39,8 +38,7 @@ public class DevAuthController {
         if (!authProperties.isAllowed(email)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email is not on the allowlist");
         }
-        User user = userRepository.findByEmail(email)
-                .orElseGet(() -> userRepository.save(new User(email, null, null, AuthProvider.DEV)));
+        User user = userService.findOrCreateDevUser(email);
         return new TokenResponse(jwtService.generateToken(user));
     }
 }

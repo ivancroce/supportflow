@@ -1,11 +1,10 @@
 package com.supportflow.auth;
 
 import com.supportflow.auth.dto.MeResponse;
-import com.supportflow.entity.User;
-import com.supportflow.exception.NotFoundException;
-import com.supportflow.repository.UserRepository;
+import com.supportflow.user.User;
+import com.supportflow.user.UserService;
 import java.util.UUID;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,17 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/me")
 public class MeController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public MeController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public MeController(UserService userService) {
+        this.userService = userService;
     }
 
     @GetMapping
-    public MeResponse me() {
-        UUID userId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+    public MeResponse me(@AuthenticationPrincipal UUID userId) {
+        User user = userService.getById(userId);
         return new MeResponse(
                 user.getId(), user.getEmail(), user.getName(), user.getAvatarUrl(), user.getProvider());
     }

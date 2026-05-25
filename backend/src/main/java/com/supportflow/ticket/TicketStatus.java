@@ -1,4 +1,4 @@
-package com.supportflow.entity.enums;
+package com.supportflow.ticket;
 
 public enum TicketStatus {
     OPEN,

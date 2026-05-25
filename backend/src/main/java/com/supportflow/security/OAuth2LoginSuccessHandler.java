@@ -2,9 +2,9 @@ package com.supportflow.security;
 
 import com.supportflow.config.AuthProperties;
 import com.supportflow.config.OAuthProperties;
-import com.supportflow.entity.User;
-import com.supportflow.entity.enums.AuthProvider;
-import com.supportflow.repository.UserRepository;
+import com.supportflow.user.AuthProvider;
+import com.supportflow.user.User;
+import com.supportflow.user.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -29,7 +29,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private static final String GITHUB = "github";
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final JwtService jwtService;
     private final AuthProperties authProperties;
     private final OAuthProperties oAuthProperties;
@@ -37,12 +37,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final RestClient restClient = RestClient.create();
 
     public OAuth2LoginSuccessHandler(
-            UserRepository userRepository,
+            UserService userService,
             JwtService jwtService,
             AuthProperties authProperties,
             OAuthProperties oAuthProperties,
             OAuth2AuthorizedClientService authorizedClientService) {
-        this.userRepository = userRepository;
+        this.userService = userService;
         this.jwtService = jwtService;
         this.authProperties = authProperties;
         this.oAuthProperties = oAuthProperties;
@@ -71,11 +71,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         }
 
         AuthProvider provider = GITHUB.equals(registrationId) ? AuthProvider.GITHUB : AuthProvider.GOOGLE;
-        String resolvedEmail = email;
-        User user = userRepository.findByEmail(resolvedEmail)
-                .orElseGet(() -> userRepository.save(new User(
-                        resolvedEmail, resolveName(registrationId, principal),
-                        resolveAvatar(registrationId, principal), provider)));
+        User user = userService.findOrCreateOAuthUser(
+                email, resolveName(registrationId, principal), resolveAvatar(registrationId, principal), provider);
 
         response.sendRedirect(oAuthProperties.successRedirect() + "#token=" + jwtService.generateToken(user));
     }
