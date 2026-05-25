@@ -20,6 +20,14 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
+    /**
+     * Return a lazy reference (Hibernate proxy) without hitting the DB. Use when you only need
+     * the FK value — e.g., setting an owner on a new entity — not the user's other fields.
+     */
+    public User getReference(UUID id) {
+        return userRepository.getReferenceById(id);
+    }
+
     @Transactional
     public User findOrCreateDevUser(String email) {
         return userRepository.findByEmail(email)
