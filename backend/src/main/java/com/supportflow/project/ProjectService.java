@@ -33,6 +33,17 @@ public class ProjectService {
         return ProjectResponse.from(requireOwned(ownerId, projectId));
     }
 
+    /**
+     * Cross-feature lookup: return the {@link Project} only if the caller owns it. Use this from
+     * other services (e.g., ticket creation) that need to verify ownership before linking to the
+     * project. Owner-mismatch is reported as not-found, same as {@link #get}, so project ids
+     * don't leak.
+     */
+    @Transactional(readOnly = true)
+    public Project getOwnedProject(UUID ownerId, UUID projectId) {
+        return requireOwned(ownerId, projectId);
+    }
+
     @Transactional
     public ProjectResponse create(UUID ownerId, CreateProjectRequest request) {
         Project project = new Project(
