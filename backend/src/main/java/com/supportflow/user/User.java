@@ -1,6 +1,5 @@
-package com.supportflow.entity;
+package com.supportflow.user;
 
-import com.supportflow.entity.enums.AuthProvider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,19 +13,16 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "users")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 320)
@@ -47,9 +43,29 @@ public class User {
     private Instant createdAt;
 
     public User(String email, String name, String avatarUrl, AuthProvider provider) {
-        this.email = email;
+        this.email = requireNonBlank(email, "email");
         this.name = name;
         this.avatarUrl = avatarUrl;
-        this.provider = provider;
+        this.provider = java.util.Objects.requireNonNull(provider, "provider");
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User that)) return false;
+        return getId() != null && getId().equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        // Constant per type so the hash is stable across Hibernate proxy / managed / pre-persist states.
+        return User.class.hashCode();
     }
 }

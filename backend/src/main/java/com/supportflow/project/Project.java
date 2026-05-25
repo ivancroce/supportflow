@@ -1,5 +1,6 @@
-package com.supportflow.entity;
+package com.supportflow.project;
 
+import com.supportflow.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,24 +11,22 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "projects")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Project {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -64,9 +63,60 @@ public class Project {
     private Instant updatedAt;
 
     public Project(User owner, String name, String clientName, String description) {
-        this.owner = owner;
-        this.name = name;
+        this.owner = Objects.requireNonNull(owner, "owner");
+        this.name = requireNonBlank(name, "name");
         this.clientName = clientName;
         this.description = description;
+    }
+
+    public void rename(String name) {
+        this.name = requireNonBlank(name, "name");
+    }
+
+    public void updateClientName(String clientName) {
+        this.clientName = clientName;
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    public void updateJiraProjectKey(String jiraProjectKey) {
+        this.jiraProjectKey = jiraProjectKey;
+    }
+
+    public void updateQaseProjectCode(String qaseProjectCode) {
+        this.qaseProjectCode = qaseProjectCode;
+    }
+
+    public void updateConfluenceSpaceKey(String confluenceSpaceKey) {
+        this.confluenceSpaceKey = confluenceSpaceKey;
+    }
+
+    public void archive() {
+        this.archived = true;
+    }
+
+    public void unarchive() {
+        this.archived = false;
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Project that)) return false;
+        return getId() != null && getId().equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Project.class.hashCode();
     }
 }
