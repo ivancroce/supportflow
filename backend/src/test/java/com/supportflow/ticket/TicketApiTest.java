@@ -168,6 +168,72 @@ class TicketApiTest {
                 .andExpect(jsonPath("$.subject").value("needs triage"));
     }
 
+    @Test
+    void cannotGetAnotherUsersTicket() throws Exception {
+        User userA = userService.findOrCreateOAuthUser(
+                "a-" + UUID.randomUUID() + "@example.com", "A", null, AuthProvider.GOOGLE);
+        User userB = userService.findOrCreateOAuthUser(
+                "b-" + UUID.randomUUID() + "@example.com", "B", null, AuthProvider.GOOGLE);
+        ProjectResponse project = projectService.create(
+                userA.getId(),
+                new CreateProjectRequest("Acme", null, null, null, null, null));
+        UUID ticketId = createTicket(userA.getId(), project.id(), "private");
+
+        mockMvc.perform(get("/api/tickets/{id}", ticketId)
+                        .with(authentication(authAs(userB.getId()))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotPatchAnotherUsersTicket() throws Exception {
+        User userA = userService.findOrCreateOAuthUser(
+                "a-" + UUID.randomUUID() + "@example.com", "A", null, AuthProvider.GOOGLE);
+        User userB = userService.findOrCreateOAuthUser(
+                "b-" + UUID.randomUUID() + "@example.com", "B", null, AuthProvider.GOOGLE);
+        ProjectResponse project = projectService.create(
+                userA.getId(),
+                new CreateProjectRequest("Acme", null, null, null, null, null));
+        UUID ticketId = createTicket(userA.getId(), project.id(), "private");
+
+        mockMvc.perform(patch("/api/tickets/{id}", ticketId)
+                        .with(authentication(authAs(userB.getId())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"IN_PROGRESS\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotDeleteAnotherUsersTicket() throws Exception {
+        User userA = userService.findOrCreateOAuthUser(
+                "a-" + UUID.randomUUID() + "@example.com", "A", null, AuthProvider.GOOGLE);
+        User userB = userService.findOrCreateOAuthUser(
+                "b-" + UUID.randomUUID() + "@example.com", "B", null, AuthProvider.GOOGLE);
+        ProjectResponse project = projectService.create(
+                userA.getId(),
+                new CreateProjectRequest("Acme", null, null, null, null, null));
+        UUID ticketId = createTicket(userA.getId(), project.id(), "private");
+
+        mockMvc.perform(delete("/api/tickets/{id}", ticketId)
+                        .with(authentication(authAs(userB.getId()))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotListAnotherUsersProjectTickets() throws Exception {
+        User userA = userService.findOrCreateOAuthUser(
+                "a-" + UUID.randomUUID() + "@example.com", "A", null, AuthProvider.GOOGLE);
+        User userB = userService.findOrCreateOAuthUser(
+                "b-" + UUID.randomUUID() + "@example.com", "B", null, AuthProvider.GOOGLE);
+        ProjectResponse project = projectService.create(
+                userA.getId(),
+                new CreateProjectRequest("Acme", null, null, null, null, null));
+        createTicket(userA.getId(), project.id(), "private");
+
+        mockMvc.perform(get("/api/projects/{id}/tickets", project.id())
+                        .with(authentication(authAs(userB.getId()))))
+                .andExpect(status().isNotFound());
+    }
+
     private UUID createTicket(UUID ownerId, UUID projectId, String subject) throws Exception {
         String body = mockMvc.perform(post("/api/projects/{id}/tickets", projectId)
                         .with(authentication(authAs(ownerId)))
