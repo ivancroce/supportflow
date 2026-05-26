@@ -5,8 +5,9 @@ import com.supportflow.project.dto.CreateProjectRequest;
 import com.supportflow.project.dto.ProjectResponse;
 import com.supportflow.project.dto.UpdateProjectRequest;
 import com.supportflow.user.UserService;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,8 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectResponse> list(UUID ownerId) {
-        return projectRepository.findByOwnerId(ownerId).stream()
-                .map(ProjectResponse::from)
-                .toList();
+    public Page<ProjectResponse> list(UUID ownerId, Pageable pageable) {
+        return projectRepository.findByOwnerId(ownerId, pageable).map(ProjectResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +87,14 @@ public class ProjectService {
         }
         // Flush so @UpdateTimestamp reflects this change in the returned DTO.
         return ProjectResponse.from(projectRepository.saveAndFlush(project));
+    }
+
+    @Transactional
+    public void delete(UUID ownerId, UUID projectId) {
+        // Cascade is enforced at the DB (tickets.project_id FK has ON DELETE CASCADE), so we don't
+        // have to delete children explicitly. One round-trip, atomic.
+        Project project = requireOwned(ownerId, projectId);
+        projectRepository.delete(project);
     }
 
     // Scope every single-project lookup to the owner; a project owned by someone else is reported
