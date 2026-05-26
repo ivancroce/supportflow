@@ -1,8 +1,8 @@
-package com.supportflow.project;
+package com.supportflow.ticket;
 
-import com.supportflow.project.dto.CreateProjectRequest;
-import com.supportflow.project.dto.ProjectResponse;
-import com.supportflow.project.dto.UpdateProjectRequest;
+import com.supportflow.ticket.dto.CreateTicketRequest;
+import com.supportflow.ticket.dto.TicketResponse;
+import com.supportflow.ticket.dto.UpdateTicketRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -22,46 +22,48 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/projects")
-public class ProjectController {
+@RequestMapping("/api")
+public class TicketController {
 
-    private final ProjectService projectService;
+    private final TicketService ticketService;
 
-    public ProjectController(ProjectService projectService) {
-        this.projectService = projectService;
+    public TicketController(TicketService ticketService) {
+        this.ticketService = ticketService;
     }
 
-    @GetMapping
-    public Page<ProjectResponse> list(
+    @GetMapping("/projects/{projectId}/tickets")
+    public Page<TicketResponse> list(
             @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID projectId,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return projectService.list(userId, pageable);
+        return ticketService.list(userId, projectId, pageable);
     }
 
-    @GetMapping("/{id}")
-    public ProjectResponse get(@AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
-        return projectService.get(userId, id);
-    }
-
-    @PostMapping
+    @PostMapping("/projects/{projectId}/tickets")
     @ResponseStatus(HttpStatus.CREATED)
-    public ProjectResponse create(
+    public TicketResponse create(
             @AuthenticationPrincipal UUID userId,
-            @Valid @RequestBody CreateProjectRequest request) {
-        return projectService.create(userId, request);
+            @PathVariable UUID projectId,
+            @Valid @RequestBody CreateTicketRequest request) {
+        return ticketService.create(userId, projectId, request);
     }
 
-    @PatchMapping("/{id}")
-    public ProjectResponse update(
+    @GetMapping("/tickets/{id}")
+    public TicketResponse get(@AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
+        return ticketService.get(userId, id);
+    }
+
+    @PatchMapping("/tickets/{id}")
+    public TicketResponse update(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateProjectRequest request) {
-        return projectService.update(userId, id, request);
+            @Valid @RequestBody UpdateTicketRequest request) {
+        return ticketService.update(userId, id, request);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/tickets/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
-        projectService.delete(userId, id);
+        ticketService.delete(userId, id);
     }
 }

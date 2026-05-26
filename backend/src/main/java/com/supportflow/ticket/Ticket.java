@@ -19,6 +19,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -33,6 +35,7 @@ public class Ticket {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "project_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Project project;
 
     @Column(nullable = false, length = 500)
@@ -87,12 +90,24 @@ public class Ticket {
         this.category = category;
     }
 
+    public void updateSubject(String subject) {
+        this.subject = requireNonBlank(subject, "subject");
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
     public void changeStatus(TicketStatus status) {
         this.status = Objects.requireNonNull(status, "status");
     }
 
     public void changePriority(TicketPriority priority) {
         this.priority = Objects.requireNonNull(priority, "priority");
+    }
+
+    public void changeType(TicketType type) {
+        this.type = Objects.requireNonNull(type, "type");
     }
 
     public void categorize(String category) {
