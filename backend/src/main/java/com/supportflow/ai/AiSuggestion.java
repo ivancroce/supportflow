@@ -15,7 +15,7 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "ai_suggestions")
@@ -44,8 +44,9 @@ public class AiSuggestion {
     @Column(name = "draft_note", columnDefinition = "text")
     private String draftNote;
 
-    @CreationTimestamp
-    @Column(name = "generated_at", nullable = false, updatable = false)
+    // Refreshed on every (re)generation so the UI can surface staleness — see ADR 0002.
+    @UpdateTimestamp
+    @Column(name = "generated_at", nullable = false)
     private Instant generatedAt;
 
     public AiSuggestion(Ticket ticket, String suggestedType, String suggestedCategory,

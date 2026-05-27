@@ -79,8 +79,15 @@ public class TicketService {
         ticketRepository.delete(ticket);
     }
 
-    // Scope every single-ticket lookup to the project's owner. A ticket owned by someone else is
-    // reported as not-found rather than forbidden so we don't leak that the id exists.
+    /**
+     * Owner-scoped entity lookup for collaborating services (e.g. AI advisor).
+     * Reports not-found rather than forbidden so we don't leak that the id exists.
+     */
+    @Transactional(readOnly = true)
+    public Ticket getOwnedTicket(UUID ownerId, UUID ticketId) {
+        return requireOwned(ownerId, ticketId);
+    }
+
     private Ticket requireOwned(UUID ownerId, UUID ticketId) {
         return ticketRepository.findById(ticketId)
                 .filter(ticket -> ticket.getProject().getOwner().getId().equals(ownerId))
