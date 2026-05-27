@@ -70,9 +70,13 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
 - **Ticket**: id, **projectId**, subject, description, status, priority, type, category,
   escalated (bool), `jiraIssueKey`, `qaseCaseId`, `confluencePageId` (nullable until escalated),
   createdAt, updatedAt.
-- **Message** / note: id, ticketId, author (User), body, isAiDraft (bool), createdAt.
 - **AiSuggestion** (cache): ticketId, suggestedType, suggestedCategory, suggestedPriority,
   draftNote, generatedAt.
+
+> A per-ticket **Message** thread was considered and dropped from the MVP: SupportFlow is
+> single-user, the AI's Triage Note already lives on `AiSuggestion`, and the headline demo
+> (escalation) doesn't need a journal. The Ticket's `description` is sufficient as the agent's
+> working text. May be revisited if a real scratchpad need emerges.
 
 **Enums:**
 
@@ -105,7 +109,6 @@ Two distinct uses of Jira/Confluence/Qase, kept in separate layers:
 
 - `GET/POST /api/projects`, `GET/PATCH /api/projects/{id}` (incl. per-project tool config)
 - `GET/POST /api/projects/{id}/tickets`, `GET /api/tickets/{id}`, `PATCH /api/tickets/{id}`
-- `POST /api/tickets/{id}/messages`
 - `GET /api/tickets/{id}/ai-suggestion`
 - `POST /api/tickets/{id}/escalate`
 - `GET /api/me`
@@ -171,14 +174,14 @@ Do **not** automate this via CI (that would be A2, out of scope).
 **Phase 0 — Scaffolding**
 
 - Monorepo: `/frontend` (Vite + Tailwind + shadcn) + `/backend` (Spring Initializr, Java 21, Maven, mvnw).
-- Neon/Postgres connection; JPA/Flyway schema for User/Project/Ticket/Message.
+- Neon/Postgres connection; JPA/Flyway schema for User/Project/Ticket.
 - Health endpoint + basic React shell.
 
 **Phase 1 — Auth + projects + tickets**
 
 - OAuth login (Google + GitHub) with allowlist gate + JWT.
 - Project CRUD (incl. per-project tool config) + project switcher.
-- Ticket CRUD + message thread, scoped to a project.
+- Ticket CRUD, scoped to a project.
 
 **Phase 2 — AI advisor**
 
