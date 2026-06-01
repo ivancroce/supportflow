@@ -25,10 +25,15 @@ import org.springframework.web.util.UriComponentsBuilder;
  * (see grilling Q4); failures are surfaced as {@link GeminiQuotaException} on HTTP 429 and
  * {@link GeminiException} otherwise so the service can return distinct envelope errors.
  *
+ * <p>The API key is sent as the {@code x-goog-api-key} header rather than a {@code ?key=} query
+ * param so it can never end up in a URL-bearing log line (request logs, exception messages).
+ *
  * <p>Schema enum literals are derived from {@link TicketType} / {@link TicketPriority} so a new
- * enum value automatically propagates to the prompt; the suggestedCategory length cap mirrors the
- * {@code ai_suggestions.suggested_category} column so an over-long value can't silently break the
- * envelope contract via a JPA constraint violation.
+ * enum value automatically propagates to the prompt. The {@code responseSchema} constraints are
+ * best-effort hints, not hard guarantees, so {@link #parseSuggestion} additionally validates the
+ * enum fields and truncates {@code suggestedCategory} to the {@code ai_suggestions.suggested_category}
+ * column width — an over-long or out-of-enum value would otherwise escape as a JPA constraint
+ * violation (a 500) instead of a clean {@code GENERATION_FAILED} envelope.
  */
 @Component
 @ConditionalOnProperty(name = "supportflow.ai.client", havingValue = "real", matchIfMissing = true)
@@ -75,7 +80,6 @@ public class RealGeminiClient implements GeminiClient {
 
         String url = UriComponentsBuilder.fromUriString(baseUrl)
                 .pathSegment("models", model + ":generateContent")
-                .queryParam("key", apiKey)
                 .build()
                 .toUriString();
 
@@ -83,6 +87,7 @@ public class RealGeminiClient implements GeminiClient {
         try {
             responseBody = http.post()
                     .uri(url)
+                    .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
@@ -110,9 +115,9 @@ public class RealGeminiClient implements GeminiClient {
             }
             JsonNode s = MAPPER.readTree(modelJson);
             return new GeminiSuggestion(
-                    requireField(s, "suggestedType"),
-                    requireField(s, "suggestedCategory"),
-                    requireField(s, "suggestedPriority"),
+                    requireEnum(s, "suggestedType", enumNames(TicketType.class)),
+                    truncate(requireField(s, "suggestedCategory"), CATEGORY_MAX_LENGTH),
+                    requireEnum(s, "suggestedPriority", enumNames(TicketPriority.class)),
                     requireField(s, "draftNote"));
         } catch (GeminiException e) {
             throw e;
@@ -127,6 +132,20 @@ public class RealGeminiClient implements GeminiClient {
             throw new GeminiException("Gemini response missing required field: " + field);
         }
         return value;
+    }
+
+    /** Validate against the enum allow-list — the schema is best-effort, so a hallucinated literal here
+     * is treated as a generation failure rather than persisted as a garbage type/priority. */
+    private static String requireEnum(JsonNode node, String field, List<String> allowed) {
+        String value = requireField(node, field);
+        if (!allowed.contains(value)) {
+            throw new GeminiException("Gemini returned out-of-enum value for " + field + ": " + value);
+        }
+        return value;
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     private static String buildPrompt(GeminiInput input) {

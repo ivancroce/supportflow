@@ -2,6 +2,7 @@ package com.supportflow.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -47,8 +48,9 @@ class RealGeminiClientTest {
                 }
                 """.formatted(quoteJson(modelJson));
 
-        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent?key=" + API_KEY))
+        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("x-goog-api-key", API_KEY))
                 .andExpect(jsonPath("$.contents[0].parts[0].text").exists())
                 .andExpect(jsonPath("$.generationConfig.responseMimeType").value("application/json"))
                 .andExpect(jsonPath("$.generationConfig.responseSchema.properties.suggestedType.enum[0]").value("QUESTION"))
@@ -67,7 +69,7 @@ class RealGeminiClientTest {
 
     @Test
     void maps429ToQuotaException() {
-        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent?key=" + API_KEY))
+        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
                 .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("{\"error\":\"quota\"}"));
 
         assertThatThrownBy(() -> client.classify(new GeminiInput("s", "d", "p", null, null)))
@@ -76,12 +78,47 @@ class RealGeminiClientTest {
 
     @Test
     void mapsServerErrorToGenericGeminiException() {
-        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent?key=" + API_KEY))
+        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"error\":\"oops\"}"));
 
         assertThatThrownBy(() -> client.classify(new GeminiInput("s", "d", "p", null, null)))
                 .isInstanceOf(GeminiException.class)
                 .isNotInstanceOf(GeminiQuotaException.class);
+    }
+
+    @Test
+    void rejectsOutOfEnumTypeAsGeminiException() {
+        // The responseSchema enum is best-effort; if the model returns a literal outside the enum
+        // we fail the generation rather than persist a garbage type.
+        String modelJson = """
+                {"suggestedType":"NOT_A_TYPE","suggestedCategory":"X",
+                 "suggestedPriority":"HIGH","draftNote":"n"}""";
+        respondWithModelJson(modelJson);
+
+        assertThatThrownBy(() -> client.classify(new GeminiInput("s", "d", "p", null, null)))
+                .isInstanceOf(GeminiException.class)
+                .hasMessageContaining("suggestedType");
+    }
+
+    @Test
+    void truncatesOverlongCategoryToColumnWidth() {
+        String longCategory = "a".repeat(200);
+        String modelJson = """
+                {"suggestedType":"BUG","suggestedCategory":"%s",
+                 "suggestedPriority":"HIGH","draftNote":"n"}""".formatted(longCategory);
+        respondWithModelJson(modelJson);
+
+        GeminiSuggestion s = client.classify(new GeminiInput("s", "d", "p", null, null));
+
+        assertThat(s.suggestedCategory()).hasSize(128);
+    }
+
+    private void respondWithModelJson(String modelJson) {
+        String geminiResponse = """
+                { "candidates": [ { "content": { "parts": [ { "text": %s } ] } } ] }
+                """.formatted(quoteJson(modelJson));
+        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
+                .andRespond(withSuccess(geminiResponse, MediaType.APPLICATION_JSON));
     }
 
     /** Embed a JSON document as a JSON string literal (escapes quotes and newlines). */
