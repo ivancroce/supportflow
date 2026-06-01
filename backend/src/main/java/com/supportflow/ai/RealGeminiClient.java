@@ -23,7 +23,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * Production Gemini client. Uses Gemini's `responseSchema` to constrain enums at the model boundary
  * (see grilling Q4); failures are surfaced as {@link GeminiQuotaException} on HTTP 429 and
- * {@link GeminiException} otherwise so the service can return distinct envelope errors.
+ * {@link GeminiException} otherwise so the service can return distinct envelope errors. Transient
+ * failures (5xx / network, notably the free tier's frequent 503 "model overloaded") are retried with
+ * exponential backoff before giving up — see {@link #postWithRetry}.
  *
  * <p>The API key is sent as the {@code x-goog-api-key} header rather than a {@code ?key=} query
  * param so it can never end up in a URL-bearing log line (request logs, exception messages).
@@ -49,16 +51,22 @@ public class RealGeminiClient implements GeminiClient {
     private final String baseUrl;
     private final String model;
     private final String apiKey;
+    private final int maxAttempts;
+    private final long retryBackoffMs;
 
     public RealGeminiClient(
             RestClient.Builder builder,
             @Value("${supportflow.ai.gemini.base-url:https://generativelanguage.googleapis.com/v1beta}") String baseUrl,
             @Value("${supportflow.ai.gemini.model:gemini-2.5-flash}") String model,
-            @Value("${supportflow.ai.gemini.api-key:}") String apiKey) {
+            @Value("${supportflow.ai.gemini.api-key:}") String apiKey,
+            @Value("${supportflow.ai.gemini.max-attempts:3}") int maxAttempts,
+            @Value("${supportflow.ai.gemini.retry-backoff-ms:1000}") long retryBackoffMs) {
         this.http = builder.build();
         this.baseUrl = baseUrl;
         this.model = model;
         this.apiKey = apiKey;
+        this.maxAttempts = Math.max(1, maxAttempts);
+        this.retryBackoffMs = Math.max(0, retryBackoffMs);
     }
 
     @PostConstruct
@@ -83,26 +91,55 @@ public class RealGeminiClient implements GeminiClient {
                 .build()
                 .toUriString();
 
-        String responseBody;
-        try {
-            responseBody = http.post()
-                    .uri(url)
-                    .header("x-goog-api-key", apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(String.class);
-        } catch (RestClientResponseException e) {
-            HttpStatusCode status = e.getStatusCode();
-            if (status.value() == 429) {
-                throw new GeminiQuotaException("Gemini quota exhausted: " + e.getResponseBodyAsString());
-            }
-            throw new GeminiException("Gemini call failed: " + status + " " + e.getResponseBodyAsString(), e);
-        } catch (RuntimeException e) {
-            throw new GeminiException("Gemini call failed: " + e.getMessage(), e);
-        }
+        return parseSuggestion(postWithRetry(url, body));
+    }
 
-        return parseSuggestion(responseBody);
+    /**
+     * POST to Gemini, retrying transient failures (HTTP 5xx — including the common 503
+     * "model overloaded" — and network/timeout errors) with exponential backoff. A 503 doesn't
+     * consume quota, so retrying is safe. HTTP 429 is surfaced immediately as {@link GeminiQuotaException}
+     * (retrying would only deepen the rate limit), and other 4xx fail fast as real client errors.
+     */
+    private String postWithRetry(String url, Map<String, Object> body) {
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                return http.post()
+                        .uri(url)
+                        .header("x-goog-api-key", apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(body)
+                        .retrieve()
+                        .body(String.class);
+            } catch (RestClientResponseException e) {
+                HttpStatusCode status = e.getStatusCode();
+                if (status.value() == 429) {
+                    throw new GeminiQuotaException("Gemini quota exhausted: " + e.getResponseBodyAsString());
+                }
+                if (!status.is5xxServerError() || attempt >= maxAttempts) {
+                    throw new GeminiException("Gemini call failed: " + status + " " + e.getResponseBodyAsString(), e);
+                }
+                log.warn("Gemini returned {} (attempt {}/{}); retrying", status.value(), attempt, maxAttempts);
+            } catch (RuntimeException e) {
+                // Network/timeout (e.g. ResourceAccessException) — transient, worth a retry.
+                if (attempt >= maxAttempts) {
+                    throw new GeminiException("Gemini call failed: " + e.getMessage(), e);
+                }
+                log.warn("Gemini call error (attempt {}/{}); retrying: {}", attempt, maxAttempts, e.getMessage());
+            }
+            backoff(attempt);
+        }
+    }
+
+    /** Exponential backoff: base, 2×base, 4×base… between attempts. */
+    private void backoff(int attempt) {
+        try {
+            Thread.sleep(retryBackoffMs * (1L << (attempt - 1)));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new GeminiException("Interrupted during Gemini retry backoff", ie);
+        }
     }
 
     private static GeminiSuggestion parseSuggestion(String responseBody) {

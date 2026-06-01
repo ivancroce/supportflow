@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -31,7 +32,8 @@ class RealGeminiClientTest {
     void setUp() {
         builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new RealGeminiClient(builder, BASE_URL, MODEL, API_KEY);
+        // 3 attempts, zero backoff so retry tests don't sleep.
+        client = new RealGeminiClient(builder, BASE_URL, MODEL, API_KEY, 3, 0L);
     }
 
     @Test
@@ -77,13 +79,37 @@ class RealGeminiClientTest {
     }
 
     @Test
-    void mapsServerErrorToGenericGeminiException() {
-        server.expect(requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
+    void retriesServerErrorThenGivesUpAsGenericGeminiException() {
+        // 5xx is transient, so it's retried up to maxAttempts (3) before failing.
+        server.expect(ExpectedCount.times(3), requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"error\":\"oops\"}"));
 
         assertThatThrownBy(() -> client.classify(new GeminiInput("s", "d", "p", null, null)))
                 .isInstanceOf(GeminiException.class)
                 .isNotInstanceOf(GeminiQuotaException.class);
+        server.verify();
+    }
+
+    @Test
+    void retriesOn503ThenSucceeds() {
+        // The Gemini free tier returns 503 "model overloaded" intermittently; the client should
+        // transparently retry and return the eventual success without the caller seeing a failure.
+        String modelJson = """
+                {"suggestedType":"BUG","suggestedCategory":"Checkout",
+                 "suggestedPriority":"HIGH","draftNote":"a triage note"}""";
+        String geminiResponse = """
+                { "candidates": [ { "content": { "parts": [ { "text": %s } ] } } ] }
+                """.formatted(quoteJson(modelJson));
+
+        server.expect(ExpectedCount.once(), requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE).body("{\"error\":\"overloaded\"}"));
+        server.expect(ExpectedCount.once(), requestTo(BASE_URL + "/models/" + MODEL + ":generateContent"))
+                .andRespond(withSuccess(geminiResponse, MediaType.APPLICATION_JSON));
+
+        GeminiSuggestion s = client.classify(new GeminiInput("s", "d", "p", null, null));
+
+        assertThat(s.suggestedType()).isEqualTo("BUG");
+        server.verify();
     }
 
     @Test
