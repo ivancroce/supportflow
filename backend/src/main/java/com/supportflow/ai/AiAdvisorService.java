@@ -8,6 +8,7 @@ import com.supportflow.ticket.TicketService;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -64,35 +65,48 @@ public class AiAdvisorService {
         try {
             generated = geminiClient.classify(input);
         } catch (GeminiQuotaException e) {
-            log.warn("Gemini quota exhausted while classifying ticket {}", ticketId, e);
+            log.warn("Gemini quota exhausted while classifying ticket {}: {}", ticketId, e.getMessage());
             return AiSuggestionEnvelope.failed("QUOTA");
         } catch (GeminiException e) {
-            log.warn("Gemini classify failed for ticket {}", ticketId, e);
+            // Transient upstream failures (notably free-tier 503 "model overloaded") are common here;
+            // log the message only, not the full stack — the ~130-frame filter-chain trace is noise.
+            log.warn("Gemini classify failed for ticket {}: {}", ticketId, e.getMessage());
             return AiSuggestionEnvelope.failed("GENERATION_FAILED");
         }
 
-        AiSuggestionResponse saved = txTemplate.execute(status -> {
-            Ticket ticket = ticketService.getOwnedTicket(ownerId, ticketId);
-            AiSuggestion existing = suggestionRepository.findById(ticket.getId()).orElse(null);
-            AiSuggestion row;
-            if (existing != null) {
-                existing.replaceSuggestion(
-                        generated.suggestedType(),
-                        generated.suggestedCategory(),
-                        generated.suggestedPriority(),
-                        generated.draftNote());
-                row = suggestionRepository.saveAndFlush(existing);
-            } else {
-                row = suggestionRepository.saveAndFlush(new AiSuggestion(
-                        ticket,
-                        generated.suggestedType(),
-                        generated.suggestedCategory(),
-                        generated.suggestedPriority(),
-                        generated.draftNote()));
-            }
-            return AiSuggestionResponse.from(row);
-        });
+        AiSuggestionResponse saved;
+        try {
+            saved = txTemplate.execute(status -> upsertSuggestion(ownerId, ticketId, generated));
+        } catch (DataIntegrityViolationException race) {
+            // A concurrent (re)generate inserted the cache row between our findById and flush
+            // (ticket_id is the PK). The row now exists, so a second attempt takes the update path.
+            log.debug("Concurrent AI suggestion insert for ticket {}; retrying as update", ticketId);
+            saved = txTemplate.execute(status -> upsertSuggestion(ownerId, ticketId, generated));
+        }
         return AiSuggestionEnvelope.ready(saved);
+    }
+
+    /** Insert the suggestion row, or overwrite it if one already exists. Must run inside a tx. */
+    private AiSuggestionResponse upsertSuggestion(UUID ownerId, UUID ticketId, GeminiSuggestion generated) {
+        Ticket ticket = ticketService.getOwnedTicket(ownerId, ticketId);
+        AiSuggestion existing = suggestionRepository.findById(ticket.getId()).orElse(null);
+        AiSuggestion row;
+        if (existing != null) {
+            existing.replaceSuggestion(
+                    generated.suggestedType(),
+                    generated.suggestedCategory(),
+                    generated.suggestedPriority(),
+                    generated.draftNote());
+            row = suggestionRepository.saveAndFlush(existing);
+        } else {
+            row = suggestionRepository.saveAndFlush(new AiSuggestion(
+                    ticket,
+                    generated.suggestedType(),
+                    generated.suggestedCategory(),
+                    generated.suggestedPriority(),
+                    generated.draftNote()));
+        }
+        return AiSuggestionResponse.from(row);
     }
 
     private static GeminiInput toInput(Ticket ticket) {
