@@ -15,7 +15,6 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "ai_suggestions")
@@ -44,8 +43,10 @@ public class AiSuggestion {
     @Column(name = "draft_note", columnDefinition = "text")
     private String draftNote;
 
-    // Refreshed on every (re)generation so the UI can surface staleness — see ADR 0002.
-    @UpdateTimestamp
+    // Set explicitly on every (re)generation so the UI can surface staleness — see ADR 0002.
+    // Managed in the domain rather than via @UpdateTimestamp: a regenerate that yields identical
+    // values wouldn't make the entity dirty, so an annotation-driven update would silently skip
+    // refreshing the timestamp.
     @Column(name = "generated_at", nullable = false)
     private Instant generatedAt;
 
@@ -56,6 +57,7 @@ public class AiSuggestion {
         this.suggestedCategory = suggestedCategory;
         this.suggestedPriority = suggestedPriority;
         this.draftNote = draftNote;
+        this.generatedAt = Instant.now();
     }
 
     /** Overwrite the cached suggestion with a freshly generated one. */
@@ -65,6 +67,7 @@ public class AiSuggestion {
         this.suggestedCategory = suggestedCategory;
         this.suggestedPriority = suggestedPriority;
         this.draftNote = draftNote;
+        this.generatedAt = Instant.now();
     }
 
     @Override
