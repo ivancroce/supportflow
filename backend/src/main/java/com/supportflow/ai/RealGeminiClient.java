@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,6 +54,7 @@ public class RealGeminiClient implements GeminiClient {
     private final String apiKey;
     private final int maxAttempts;
     private final long retryBackoffMs;
+    private final long retryMaxElapsedMs;
 
     public RealGeminiClient(
             RestClient.Builder builder,
@@ -60,13 +62,15 @@ public class RealGeminiClient implements GeminiClient {
             @Value("${supportflow.ai.gemini.model:gemini-2.5-flash}") String model,
             @Value("${supportflow.ai.gemini.api-key:}") String apiKey,
             @Value("${supportflow.ai.gemini.max-attempts:3}") int maxAttempts,
-            @Value("${supportflow.ai.gemini.retry-backoff-ms:1000}") long retryBackoffMs) {
+            @Value("${supportflow.ai.gemini.retry-backoff-ms:1000}") long retryBackoffMs,
+            @Value("${supportflow.ai.gemini.retry-max-elapsed-ms:30000}") long retryMaxElapsedMs) {
         this.http = builder.build();
         this.baseUrl = baseUrl;
         this.model = model;
         this.apiKey = apiKey;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.retryBackoffMs = Math.max(0, retryBackoffMs);
+        this.retryMaxElapsedMs = Math.max(0, retryMaxElapsedMs);
     }
 
     @PostConstruct
@@ -101,6 +105,7 @@ public class RealGeminiClient implements GeminiClient {
      * (retrying would only deepen the rate limit), and other 4xx fail fast as real client errors.
      */
     private String postWithRetry(String url, Map<String, Object> body) {
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(retryMaxElapsedMs);
         int attempt = 0;
         while (true) {
             attempt++;
@@ -117,19 +122,28 @@ public class RealGeminiClient implements GeminiClient {
                 if (status.value() == 429) {
                     throw new GeminiQuotaException("Gemini quota exhausted: " + e.getResponseBodyAsString());
                 }
-                if (!status.is5xxServerError() || attempt >= maxAttempts) {
+                if (!status.is5xxServerError() || retriesExhausted(attempt, deadlineNanos)) {
                     throw new GeminiException("Gemini call failed: " + status + " " + e.getResponseBodyAsString(), e);
                 }
                 log.warn("Gemini returned {} (attempt {}/{}); retrying", status.value(), attempt, maxAttempts);
             } catch (RuntimeException e) {
                 // Network/timeout (e.g. ResourceAccessException) — transient, worth a retry.
-                if (attempt >= maxAttempts) {
+                if (retriesExhausted(attempt, deadlineNanos)) {
                     throw new GeminiException("Gemini call failed: " + e.getMessage(), e);
                 }
                 log.warn("Gemini call error (attempt {}/{}); retrying: {}", attempt, maxAttempts, e.getMessage());
             }
             backoff(attempt);
         }
+    }
+
+    /**
+     * Stop retrying once we've used up the attempt count OR the total wall-clock budget. The budget
+     * matters because each failed attempt can burn the full read timeout; without it, a hung upstream
+     * could stack {@code maxAttempts × readTimeout} and block the caller far longer than intended.
+     */
+    private boolean retriesExhausted(int attempt, long deadlineNanos) {
+        return attempt >= maxAttempts || System.nanoTime() >= deadlineNanos;
     }
 
     /** Exponential backoff: base, 2×base, 4×base… between attempts. */

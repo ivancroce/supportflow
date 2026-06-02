@@ -32,8 +32,9 @@ class RealGeminiClientTest {
     void setUp() {
         builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        // 3 attempts, zero backoff so retry tests don't sleep.
-        client = new RealGeminiClient(builder, BASE_URL, MODEL, API_KEY, 3, 0L);
+        // 3 attempts, zero backoff so retry tests don't sleep; generous elapsed budget so the
+        // attempt count (not the clock) is what bounds the retry loop in these tests.
+        client = new RealGeminiClient(builder, BASE_URL, MODEL, API_KEY, 3, 0L, 60_000L);
     }
 
     @Test
