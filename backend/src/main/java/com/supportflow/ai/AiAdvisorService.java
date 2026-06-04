@@ -5,12 +5,14 @@ import com.supportflow.ai.dto.AiSuggestionResponse;
 import com.supportflow.project.Project;
 import com.supportflow.ticket.Ticket;
 import com.supportflow.ticket.TicketService;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -46,6 +48,16 @@ public class AiAdvisorService {
             return AiSuggestionEnvelope.ready(prep.cached());
         }
         return callGeminiAndStore(ownerId, ticketId, prep.input());
+    }
+
+    /**
+     * The cached Triage Note for a ticket, if the Advisor has produced one. Read-only; used by
+     * escalation to seed the Jira/Confluence bodies without making an AI call (see ADR 0003). Keyed
+     * by ticket id only — the caller has already verified ownership of the ticket.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> cachedTriageNote(UUID ticketId) {
+        return suggestionRepository.findById(ticketId).map(AiSuggestion::getDraftNote);
     }
 
     public AiSuggestionEnvelope regenerate(UUID ownerId, UUID ticketId) {

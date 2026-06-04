@@ -114,12 +114,39 @@ public class Ticket {
         this.category = category;
     }
 
-    /** Mark this ticket as escalated and record the external system identifiers it was linked to. */
-    public void markEscalated(String jiraIssueKey, String qaseCaseId, String confluencePageId) {
-        this.escalated = true;
+    /**
+     * Mark this ticket as a bug. Clicking "Escalate as bug" is the declaration, so the type is set
+     * up front and persists even if the subsequent external calls fail (see ADR 0003).
+     */
+    public void markAsBug() {
+        this.type = TicketType.BUG;
+    }
+
+    /** Record the Jira issue created for this ticket during escalation. */
+    public void recordJiraIssue(String jiraIssueKey) {
         this.jiraIssueKey = jiraIssueKey;
+    }
+
+    /** Record the Qase test case created for this ticket during escalation. */
+    public void recordQaseCase(String qaseCaseId) {
         this.qaseCaseId = qaseCaseId;
+    }
+
+    /** Record the Confluence Known Issue page created for this ticket during escalation. */
+    public void recordConfluencePage(String confluencePageId) {
         this.confluencePageId = confluencePageId;
+    }
+
+    /**
+     * Flip the escalated flag once every external record exists. Escalation persists each id
+     * incrementally and retries the missing tools, so {@code escalated} only becomes true when the
+     * ticket is fully linked into Jira + Qase + Confluence (see ADR 0003).
+     */
+    public boolean markEscalatedIfComplete() {
+        if (!escalated && jiraIssueKey != null && qaseCaseId != null && confluencePageId != null) {
+            this.escalated = true;
+        }
+        return this.escalated;
     }
 
     private static String requireNonBlank(String value, String fieldName) {
