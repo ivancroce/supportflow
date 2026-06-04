@@ -14,5 +14,7 @@ since suggestions are isolated behind the `AiSuggestion` cache.
 
 - "Search existing Known Issues for a match" (grounded retrieval) is intentionally out of scope until
   a corpus of Confluence pages exists — a later enhancement, not Phase 2.
-- The accepted triage note seeds both the Jira issue description and the Confluence Known-Issue page,
-  so the reviewed text is reused without extra model calls.
+- The cached triage note, when one exists, seeds both the Jira issue description and the Confluence
+  Known-Issue page, so the reviewed text is reused without extra model calls. (Escalation also works
+  with no suggestion at all — the triage note is optional enrichment, not an accept gate. See ADR 0003,
+  which supersedes the earlier "accepted triage note" framing.)

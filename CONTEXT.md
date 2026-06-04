@@ -44,7 +44,7 @@ _Avoid_: Decision, result.
 
 **Known Issue**:
 A Confluence page created at Escalation as an "Investigating" stub for a bug. Its body is seeded from
-the accepted Triage Note.
+the Ticket (subject + description) and, when an Advisor Suggestion has been cached, the Triage Note.
 _Avoid_: Article, doc, KB entry.
 
 ## Flagged ambiguities
@@ -63,4 +63,5 @@ _Avoid_: Article, doc, KB entry.
 > Advisor's pick lives in the suggestion cache, separate from the Ticket.
 > **Dev:** And if it's a real bug?
 > **Domain expert:** You escalate it. That creates the Jira issue, the Qase case, and a Known Issue
-> page in Confluence — the Known Issue body comes from the accepted Triage Note.
+> page in Confluence — the Known Issue body comes from the ticket text, plus the Triage Note if the
+> Advisor has run on it.

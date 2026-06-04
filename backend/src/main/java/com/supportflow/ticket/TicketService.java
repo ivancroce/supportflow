@@ -80,12 +80,55 @@ public class TicketService {
     }
 
     /**
-     * Owner-scoped entity lookup for collaborating services (e.g. AI advisor).
+     * Owner-scoped entity lookup for collaborating services (e.g. AI advisor, escalation).
      * Reports not-found rather than forbidden so we don't leak that the id exists.
      */
     @Transactional(readOnly = true)
     public Ticket getOwnedTicket(UUID ownerId, UUID ticketId) {
         return requireOwned(ownerId, ticketId);
+    }
+
+    // --- Escalation support: owner-scoped state transitions used by EscalationService. Kept here so
+    // the TicketRepository stays encapsulated within this package (see ADR 0003). ---
+
+    /** Mark the ticket a bug (idempotent). Called up front when escalation begins. */
+    @Transactional
+    public void markAsBug(UUID ownerId, UUID ticketId) {
+        Ticket ticket = requireOwned(ownerId, ticketId);
+        ticket.markAsBug();
+        ticketRepository.saveAndFlush(ticket);
+    }
+
+    /** Record the created Jira issue key on the ticket (one short tx, as escalation succeeds). */
+    @Transactional
+    public void recordJiraIssue(UUID ownerId, UUID ticketId, String jiraIssueKey) {
+        Ticket ticket = requireOwned(ownerId, ticketId);
+        ticket.recordJiraIssue(jiraIssueKey);
+        ticketRepository.saveAndFlush(ticket);
+    }
+
+    /** Record the created Qase case id on the ticket. */
+    @Transactional
+    public void recordQaseCase(UUID ownerId, UUID ticketId, String qaseCaseId) {
+        Ticket ticket = requireOwned(ownerId, ticketId);
+        ticket.recordQaseCase(qaseCaseId);
+        ticketRepository.saveAndFlush(ticket);
+    }
+
+    /** Record the created Confluence page id on the ticket. */
+    @Transactional
+    public void recordConfluencePage(UUID ownerId, UUID ticketId, String confluencePageId) {
+        Ticket ticket = requireOwned(ownerId, ticketId);
+        ticket.recordConfluencePage(confluencePageId);
+        ticketRepository.saveAndFlush(ticket);
+    }
+
+    /** Flip the escalated flag iff all three external ids now exist, and return the fresh ticket. */
+    @Transactional
+    public TicketResponse markEscalatedIfComplete(UUID ownerId, UUID ticketId) {
+        Ticket ticket = requireOwned(ownerId, ticketId);
+        ticket.markEscalatedIfComplete();
+        return TicketResponse.from(ticketRepository.saveAndFlush(ticket));
     }
 
     private Ticket requireOwned(UUID ownerId, UUID ticketId) {
