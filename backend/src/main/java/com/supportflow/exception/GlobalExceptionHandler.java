@@ -18,7 +18,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(EscalationNotConfiguredException.class)
     ProblemDetail handleEscalationNotConfigured(EscalationNotConfiguredException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+                HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         problem.setProperty("missingTargets", ex.getMissingTargets());
         return problem;
     }
