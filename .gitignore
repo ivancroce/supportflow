@@ -25,6 +25,9 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 hs_err_pid*
 
+# Design references (local only, not part of the repo)
+design_handoff_supportflow/
+
 # IDE / OS
 .idea/
 *.iml
