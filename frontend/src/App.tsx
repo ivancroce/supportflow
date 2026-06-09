@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
+import { Board } from '@/routes/Board'
 import { Login } from '@/routes/Login'
 import { OAuthCallback } from '@/routes/OAuthCallback'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
@@ -24,7 +25,7 @@ function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/projects/new" element={<ComingSoon title="New project" />} />
         <Route path="/projects/:projectId" element={<AppShell />}>
-          <Route path="tickets" element={<ComingSoon title="Ticket board" />} />
+          <Route path="tickets" element={<Board />} />
           <Route path="tickets/:ticketId" element={<ComingSoon title="Ticket detail" />} />
           <Route path="settings" element={<ComingSoon title="Project settings" />} />
         </Route>
