@@ -1,21 +1,10 @@
-import { createContext, use, useCallback, useEffect, type ReactNode } from 'react'
+import { useCallback, useEffect, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from './api'
+import { AuthContext, type AuthStatus } from './auth-context'
 import { AUTH_LOGOUT_EVENT, clearToken, getToken, setToken } from './token'
 import type { Me } from './types'
-
-type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
-
-interface AuthContextValue {
-  me: Me | null
-  status: AuthStatus
-  /** Persist a freshly-minted JWT (from OAuth callback or dev login) and load the profile. */
-  signIn: (token: string) => Promise<void>
-  signOut: () => void
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
@@ -64,10 +53,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = use(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
-  return ctx
 }
