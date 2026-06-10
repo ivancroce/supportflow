@@ -144,7 +144,7 @@ class EscalationApiTest {
 
         mockMvc.perform(post("/api/tickets/{id}/escalate", ticketId)
                         .with(authentication(authAs(owner))))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.missingTargets[0]").value("confluenceSpaceKey"));
 
         Assertions.assertEquals(0, fakeJira.callCount());

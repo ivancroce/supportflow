@@ -8,6 +8,12 @@ language used across the codebase and docs.
 
 ### Core
 
+**Owner**:
+The single human who uses SupportFlow — the developer doing the client work. There is no other
+role: no agents, no team, no end-users or customers signing in. The UI speaks in the first person
+("your projects", "your queue") and never labels the logged-in person.
+_Avoid_: Agent, user (in UI copy), team member, requester, customer (nobody else logs in).
+
 **Project**:
 One client/website. Owns its tickets and its own Jira/Qase/Confluence targets.
 _Avoid_: Client (the human is the client; the Project is the work), workspace.
