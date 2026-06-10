@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from './api'
@@ -10,7 +10,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const hasToken = !!getToken()
+  // Token presence is state, not a plain read: after signIn stores the token we must re-render so the
+  // disabled `/api/me` query flips to enabled and fetches (invalidateQueries alone won't run a
+  // disabled query). The logout handler flips it back to false.
+  const [hasToken, setHasToken] = useState(() => !!getToken())
   const meQuery = useQuery({
     queryKey: ['me'],
     queryFn: () => apiFetch<Me>('/api/me'),
@@ -22,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     async (token: string) => {
       setToken(token)
+      setHasToken(true)
       await queryClient.invalidateQueries({ queryKey: ['me'] })
     },
     [queryClient],
@@ -35,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // server state and route to login so no stale data lingers behind a dead session.
   useEffect(() => {
     const onLogout = () => {
+      setHasToken(false)
       queryClient.clear()
       navigate('/login', { replace: true })
     }
