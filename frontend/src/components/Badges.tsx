@@ -9,7 +9,7 @@ type Size = 'sm' | 'md'
 const STATUS_STYLE: Record<TicketStatus, { wrap: string; dot: string }> = {
   OPEN: { wrap: 'bg-info-soft text-info-ink', dot: 'bg-info' },
   IN_PROGRESS: { wrap: 'bg-warning-soft text-warning-ink', dot: 'bg-warning' },
-  // PENDING isn't in the handoff palette; give it a distinct SLDS-adjacent indigo so it reads
+  // PENDING isn't in the handoff palette; give it a distinct indigo so it reads
   // apart from CLOSED's neutral grey.
   PENDING: { wrap: 'bg-[#eeeaf8] text-[#5b3fa8]', dot: 'bg-[#5b3fa8]' },
   RESOLVED: { wrap: 'bg-success-soft text-success-ink', dot: 'bg-success' },

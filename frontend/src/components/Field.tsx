@@ -4,7 +4,7 @@ import { forwardRef } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-// Shared SLDS form primitives: a labelled Field wrapper plus styled text input, textarea, and a
+// Shared form primitives: a labelled Field wrapper plus styled text input, textarea, and a
 // native select (kept native for accessibility, restyled to match the input look).
 
 const controlBase =

@@ -7,7 +7,7 @@ SupportFlow's locked model is the opposite — a single Owner (the developer), n
 agents logging in, no assignees, no message thread (dropped from the MVP), and an
 `AiSuggestionResponse` with no confidence field.
 
-**Decision:** we recreate the handoff's *visual language* faithfully (the SLDS palette, type scale,
+**Decision:** we recreate the handoff's *visual language* faithfully (the palette, type scale,
 spacing, badges, shadows, animations — that is the reason it exists) but bind the UI only to the
 real backend model. Concretely:
 

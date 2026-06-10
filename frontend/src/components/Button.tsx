@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-// SLDS button, ported from the design handoff (variants primary/secondary/ghost/soft/danger,
+// Button, ported from the design handoff (variants primary/secondary/ghost/soft/danger,
 // sizes sm/md/lg). Kept separate from the shadcn base-ui button so the queue UI matches the spec.
 const button = cva(
   'inline-flex shrink-0 items-center justify-center font-semibold tracking-[-0.01em] whitespace-nowrap ' +

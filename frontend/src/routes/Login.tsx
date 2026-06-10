@@ -33,7 +33,7 @@ export function Login() {
 
   return (
     <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-canvas px-4">
-      {/* Soft SLDS radial glows */}
+      {/* Soft radial glows */}
       <div
         className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full"
         style={{ background: 'radial-gradient(circle, rgba(1,118,211,.12), transparent 60%)' }}
