@@ -34,14 +34,8 @@ export function Login() {
   return (
     <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-canvas px-4">
       {/* Soft radial glows */}
-      <div
-        className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(1,118,211,.12), transparent 60%)' }}
-      />
-      <div
-        className="pointer-events-none absolute -bottom-40 -left-40 size-[520px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(3,45,96,.07), transparent 60%)' }}
-      />
+      <div className="glow-brand pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full" />
+      <div className="glow-navy pointer-events-none absolute -bottom-40 -left-40 size-[520px] rounded-full" />
 
       <div className="relative w-[408px] max-w-full animate-rise">
         <div className="mb-[26px] flex justify-center">

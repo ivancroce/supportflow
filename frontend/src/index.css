@@ -208,6 +208,16 @@
     100% { background-position: 200% 0; }
 }
 
+@layer utilities {
+    /* Soft decorative radial glows behind the sign-in card (brand blue + shell navy). */
+    .glow-brand {
+        background: radial-gradient(circle, rgba(1, 118, 211, 0.12), transparent 60%);
+    }
+    .glow-navy {
+        background: radial-gradient(circle, rgba(3, 45, 96, 0.07), transparent 60%);
+    }
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;

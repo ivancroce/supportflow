@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 export function Wordmark({ size = 17, light = false }: { size?: number; light?: boolean }) {
   const glyph = size * 1.6
   return (
-    <span className="inline-flex items-center" style={{ gap: 9 }}>
+    <span className="inline-flex items-center gap-[9px]">
       <span
         className="inline-flex items-center justify-center shadow-soft"
         style={{
