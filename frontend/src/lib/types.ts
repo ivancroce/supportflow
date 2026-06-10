@@ -4,7 +4,7 @@
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'PENDING' | 'RESOLVED' | 'CLOSED'
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type TicketType = 'QUESTION' | 'BUG' | 'FEATURE_REQUEST'
-export type AuthProvider = 'GOOGLE' | 'GITHUB'
+export type AuthProvider = 'GOOGLE' | 'GITHUB' | 'DEV'
 
 export const TICKET_STATUSES: TicketStatus[] = [
   'OPEN',
