@@ -1,32 +1,32 @@
 import { Check, ChevronsUpDown, Inbox, LogOut, Plus, Settings } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
 import { Wordmark } from '@/components/Wordmark'
 import { useAuth } from '@/lib/auth-context'
+import { TYPE_DISPLAY } from '@/lib/display'
+import { initials } from '@/lib/format'
 import { setLastProjectId } from '@/lib/lastProject'
 import { useProject, useProjects, useTickets } from '@/lib/queries'
+import { TICKET_TYPES } from '@/lib/types'
 import type { Project, TicketType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 // Deterministic project chip (no color field on the backend — derive one from the name).
 const CHIP_COLORS = ['#0176D3', '#06A59A', '#5867E8', '#9050E9', '#C23934', '#0B7285']
 function projectChip(project: Project): { short: string; color: string } {
-  const short = project.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
+  const short = initials(project.name)
   const color = CHIP_COLORS[(project.name.charCodeAt(0) || 0) % CHIP_COLORS.length]
   return { short, color }
 }
 
-const TYPE_LABELS: { type: TicketType; label: string; dot: string }[] = [
-  { type: 'BUG', label: 'Bugs', dot: 'bg-danger' },
-  { type: 'QUESTION', label: 'Questions', dot: 'bg-info' },
-  { type: 'FEATURE_REQUEST', label: 'Feature requests', dot: 'bg-success' },
-]
+// Sidebar "Labels" section — derived from the shared display map so a new ticket type shows up here
+// automatically (plural nav form + dot color).
+const TYPE_LABELS: { type: TicketType; label: string; dot: string }[] = TICKET_TYPES.map((type) => ({
+  type,
+  label: TYPE_DISPLAY[type].navLabel,
+  dot: TYPE_DISPLAY[type].dot,
+}))
 
 export function AppShell() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -38,8 +38,17 @@ export function AppShell() {
     if (projectId) setLastProjectId(projectId)
   }, [projectId])
 
-  const openCount = tickets?.filter((t) => t.status === 'OPEN').length ?? 0
-  const totalCount = tickets?.length ?? 0
+  // One pass over the tickets builds every sidebar count (open + per-type) instead of a separate
+  // .filter() per label on each render.
+  const { openCount, totalCount, typeCounts } = useMemo(() => {
+    const counts = Object.fromEntries(TICKET_TYPES.map((t) => [t, 0])) as Record<TicketType, number>
+    let open = 0
+    for (const t of tickets ?? []) {
+      if (t.status === 'OPEN') open++
+      counts[t.type]++
+    }
+    return { openCount: open, totalCount: tickets?.length ?? 0, typeCounts: counts }
+  }, [tickets])
 
   return (
     <div className="flex h-svh bg-canvas">
@@ -72,9 +81,7 @@ export function AppShell() {
           </p>
           <div className="flex flex-col gap-0.5">
             {TYPE_LABELS.map((t) => (
-              <TypeLabelLink key={t.type} projectId={projectId} {...t} count={
-                tickets?.filter((tk) => tk.type === t.type).length
-              } />
+              <TypeLabelLink key={t.type} projectId={projectId} {...t} count={typeCounts[t.type]} />
             ))}
           </div>
         </div>

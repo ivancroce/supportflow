@@ -1,3 +1,4 @@
+import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 // Deterministic cool-tone initials chip from the design (6 blue/teal/indigo pairs).
@@ -9,16 +10,6 @@ const PAIRS: [string, string][] = [
   ['#E2DDF6', '#5B3FA8'],
   ['#D6E8F8', '#155E9C'],
 ]
-
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
 
 export function Avatar({
   name,

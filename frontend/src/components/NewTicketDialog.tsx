@@ -4,7 +4,7 @@ import { Button } from '@/components/Button'
 import { Dialog } from '@/components/Dialog'
 import { Field, Select, TextArea, TextInput } from '@/components/Field'
 import { ApiError } from '@/lib/api'
-import { PRIORITY_LABEL, TYPE_LABEL } from '@/lib/format'
+import { PRIORITY_DISPLAY, TYPE_DISPLAY } from '@/lib/display'
 import { useCreateTicket } from '@/lib/queries'
 import { TICKET_PRIORITIES, TICKET_TYPES } from '@/lib/types'
 import type { TicketPriority, TicketType } from '@/lib/types'
@@ -111,7 +111,7 @@ export function NewTicketDialog({
             >
               {TICKET_PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
+                  {PRIORITY_DISPLAY[p].label}
                 </option>
               ))}
             </Select>
@@ -125,7 +125,7 @@ export function NewTicketDialog({
             >
               {TICKET_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {TYPE_LABEL[t]}
+                  {TYPE_DISPLAY[t].label}
                 </option>
               ))}
             </Select>

@@ -4,7 +4,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PriorityBadge, StatusBadge, TypeDot } from '@/components/Badges'
 import { Button } from '@/components/Button'
 import { NewTicketDialog } from '@/components/NewTicketDialog'
-import { relativeAge, shortId, STATUS_LABEL, TYPE_LABEL } from '@/lib/format'
+import { STATUS_DISPLAY, TYPE_DISPLAY } from '@/lib/display'
+import { relativeAge, shortId } from '@/lib/format'
 import { useProject, useTickets } from '@/lib/queries'
 import { TICKET_STATUSES } from '@/lib/types'
 import type { Ticket, TicketStatus, TicketType } from '@/lib/types'
@@ -62,7 +63,7 @@ export function Board() {
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: base.length },
-    ...TICKET_STATUSES.map((s) => ({ id: s, label: STATUS_LABEL[s], count: counts[s] })),
+    ...TICKET_STATUSES.map((s) => ({ id: s, label: STATUS_DISPLAY[s].label, count: counts[s] })),
   ]
 
   return (
@@ -78,7 +79,7 @@ export function Board() {
                 className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft py-1 pl-2.5 pr-2 text-[12px] font-semibold text-brand-ink transition-colors hover:bg-[#d9ecfb]"
               >
                 <TypeDot type={typeFilter} />
-                {TYPE_LABEL[typeFilter]}
+                {TYPE_DISPLAY[typeFilter].label}
                 <X size={13} />
               </button>
             )}
@@ -230,7 +231,7 @@ function TicketRow({
         <span className="mt-1 flex items-center gap-2.5 text-[12px] text-ink-3">
           <span className="inline-flex items-center gap-1.5">
             <TypeDot type={ticket.type} />
-            {TYPE_LABEL[ticket.type]}
+            {TYPE_DISPLAY[ticket.type].label}
           </span>
           {ticket.category && (
             <>
